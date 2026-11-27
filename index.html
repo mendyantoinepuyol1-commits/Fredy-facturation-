@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freddy et Frère - Facturation</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:16px; color:#222; }
+  .carte { background:#fff; max-width:520px; margin:0 auto; padding:18px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  h1 { font-size:20px; text-align:center; margin-top:0; }
+  label { display:block; margin-top:12px; font-weight:bold; font-size:14px; }
+  input, select { width:100%; padding:10px; margin-top:4px; font-size:16px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box; }
+  .ligne { display:flex; gap:8px; align-items:flex-end; }
+  .ligne > div { flex:1; }
+  button { width:100%; padding:14px; margin-top:16px; font-size:16px; border:none; border-radius:8px; color:#fff; background:#1a7f4b; cursor:pointer; }
+  button.secondaire { background:#555; }
+  #facture { margin-top:18px; border-top:2px dashed #ccc; padding-top:12px; white-space:pre-wrap; font-family:monospace; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="carte">
+  <h1>Freddy et Frère<br>Location de bâches et de chaises</h1>
+
+  <label>Nom du client</label>
+  <input id="nom" placeholder="Ex : Awa Diop">
+
+  <label>Numéro WhatsApp du client (avec indicatif)</label>
+  <input id="tel" type="tel" placeholder="Ex : 221771234567">
+
+  <label>Nombre de bâches de 8 m sans montage (8 000 F)</label>
+  <input id="b8s" type="number" min="0" value="0">
+
+  <label>Nombre de bâches de 8 m avec montage (10 000 F)</label>
+  <input id="b8a" type="number" min="0" value="0">
+
+  <label>Nombre de bâches de 12 m sans montage (12 000 F)</label>
+  <input id="b12s" type="number" min="0" value="0">
+
+  <label>Nombre de bâches de 12 m avec montage (14 000 F)</label>
+  <input id="b12a" type="number" min="0" value="0">
+
+  <label>Nombre de chaises (150 F)</label>
+  <input id="chaises" type="number" min="0" value="0">
+
+  <label>Livraison</label>
+  <select id="livraison" onchange="basculerLivraison()">
+    <option value="non">Non, le client récupère</option>
+    <option value="oui">Oui, avec livraison</option>
+  </select>
+
+  <div id="zoneLivraison" style="display:none">
+    <label>Prix de la livraison (selon la distance)</label>
+    <input id="prixLivraison" type="number" min="0" value="0">
+  </div>
+
+  <label>Lien de paiement Wave / Orange Money (acompte)</label>
+  <input id="lien" placeholder="Collez ici le lien PayDunya, CinetPay ou PayTech">
+
+  <button onclick="calculer()">Préparer la facture</button>
+  <div id="facture"></div>
+  <button id="boutonWhats" class="secondaire" style="display:none" onclick="envoyerWhatsApp()">Envoyer par WhatsApp</button>
+</div>
+
+<script>
+const PRIX = { b8s: 8000, b8a: 10000, b12s: 12000, b12a: 14000, chaises: 150 };
+let messageFinal = '';
+
+function basculerLivraison() {
+  const oui = document.getElementById('livraison').value === 'oui';
+  document.getElementById('zoneLivraison').style.display = oui ? 'block' : 'none';
+  if (!oui) document.getElementById('prixLivraison').value = 0;
+}
+
+function formater(n) {
+  return n.toLocaleString('fr-FR') + ' F CFA';
+}
+
+function calculer() {
+  const nom = document.getElementById('nom').value.trim() || 'Client';
+  const date = new Date().toLocaleDateString('fr-FR');
+  const lignes = [
+    ['Bâche 8 m sans montage', 'b8s'],
+    ['Bâche 8 m avec montage', 'b8a'],
+    ['Bâche 12 m sans montage', 'b12s'],
+    ['Bâche 12 m avec montage', 'b12a'],
+    ['Chaise', 'chaises']
+  ];
+  let texte = 'FACTURE - Freddy et Frère\nDate : ' + date + '\nClient : ' + nom + '\n\n';
+  let total = 0;
+  lignes.forEach(function (l) {
+    const qte = parseInt(document.getElementById(l[1]).value) || 0;
+    if (qte > 0) {
+      const montant = qte * PRIX[l[1]];
+      total += montant;
+      texte += l[0] + ' : ' + qte + ' x ' + formater(PRIX[l[1]]) + ' = ' + formater(montant) + '\n';
+    }
+  });
+  const livraison = parseInt(document.getElementById('prixLivraison').value) || 0;
+  if (livraison > 0) {
+    total += livraison;
+    texte += 'Livraison : ' + formater(livraison) + '\n';
+  }
+  const acompte = Math.round(total / 2);
+  texte += '\nTOTAL : ' + formater(total);
+  texte += '\nAcompte à verser (50 %) : ' + formater(acompte);
+  texte += '\nReste à payer : ' + formater(total - acompte);
+  const lien = document.getElementById('lien').value.trim();
+  if (lien) texte += '\n\nPayer l\'acompte par Wave ou Orange Money :\n' + lien;
+  texte += '\n\nMerci de votre confiance !';
+  messageFinal = texte;
+  document.getElementById('facture').textContent = texte;
+  document.getElementById('boutonWhats').style.display = 'block';
+}
+
+function envoyerWhatsApp() {
+  const tel = document.getElementById('tel').value.replace(/[^0-9]/g, '');
+  const base = tel ? 'https://wa.me/' + tel : 'https://wa.me/';
+  window.open(base + '?text=' + encodeURIComponent(messageFinal), '_blank');
+}
+</script>
+</body>
+</html>
